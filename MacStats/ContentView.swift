@@ -2,13 +2,17 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        VStack(spacing: 12) {
+            Text("MacStats")
+                .font(.headline)
+
+            Divider()
+
+            Text("Cтатистика")
+                .foregroundColor(.secondary)
         }
         .padding()
+        .frame(width: 260)
     }
 }
 

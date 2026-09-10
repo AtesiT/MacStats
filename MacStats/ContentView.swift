@@ -33,33 +33,48 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("MacStats")
-                .font(.headline)
+            HStack {
+                Image(systemName: "menubar.rectangle")
+                Text("MacStats")
+                    .font(.headline)
+            }
 
             Divider()
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("CPU: \(Int(stats.cpuUsage))%")
+                Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
                 ProgressView(value: stats.cpuUsage, total: 100)
+                    .tint(.blue)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("RAM: \(String(format: "%.1f", stats.memoryUsed)) GB / \(String(format: "%.1f", stats.memoryTotal)) GB")
+                Label("RAM: \(String(format: "%.1f", stats.memoryUsed)) / \(String(format: "%.1f", stats.memoryTotal)) GB", systemImage: "memorychip")
                 ProgressView(value: stats.memoryUsed, total: stats.memoryTotal)
+                    .tint(.purple)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Battery: \(stats.batteryPercentage)% \(stats.isCharging ? "(charging)" : "")")
+                Label("Battery: \(stats.batteryPercentage)% \(stats.isCharging ? "⚡️" : "")", systemImage: stats.isCharging ? "battery.100.bolt" : "battery.50")
                 ProgressView(value: Double(stats.batteryPercentage), total: 100)
+                    .tint(stats.batteryPercentage < 20 ? .red : .green)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Disk free: \(String(format: "%.0f", stats.diskFree)) GB / \(String(format: "%.0f", stats.diskTotal)) GB")
+                Label("Disk free: \(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB", systemImage: "internaldrive")
                 ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
+                    .tint(.orange)
             }
+
+            Divider()
+
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.red)
         }
         .padding()
-        .frame(width: 260)
+        .frame(width: 280)
     }
 }
 

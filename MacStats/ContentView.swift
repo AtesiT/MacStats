@@ -29,19 +29,42 @@ class SystemStats: ObservableObject {
 }
 
 struct ContentView: View {
+    @EnvironmentObject var stats: SystemStats
+
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             Text("MacStats")
                 .font(.headline)
 
             Divider()
 
-            Text("Cтатистика")
-                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("CPU: \(Int(stats.cpuUsage))%")
+                ProgressView(value: stats.cpuUsage, total: 100)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("RAM: \(String(format: "%.1f", stats.memoryUsed)) GB / \(String(format: "%.1f", stats.memoryTotal)) GB")
+                ProgressView(value: stats.memoryUsed, total: stats.memoryTotal)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Battery: \(stats.batteryPercentage)% \(stats.isCharging ? "(charging)" : "")")
+                ProgressView(value: Double(stats.batteryPercentage), total: 100)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Disk free: \(String(format: "%.0f", stats.diskFree)) GB / \(String(format: "%.0f", stats.diskTotal)) GB")
+                ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
+            }
         }
         .padding()
         .frame(width: 260)
     }
+}
+
+#Preview {
+    ContentView().environmentObject(SystemStats())
 }
 
 func getCPUUsage() -> Double {
@@ -129,8 +152,4 @@ func getDiskSpace() -> (free: Double, total: Double) {
     let total = attributes[.systemSize] as? Double ?? 0
 
     return (free / 1_073_741_824, total / 1_073_741_824)
-}
-
-#Preview {
-    ContentView()
 }

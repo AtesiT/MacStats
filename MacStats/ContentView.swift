@@ -1,4 +1,5 @@
 import SwiftUI
+import IOKit.ps
 
 struct ContentView: View {
     var body: some View {
@@ -69,6 +70,24 @@ struct ContentView: View {
         let totalBytes = Double(ProcessInfo.processInfo.physicalMemory)
 
         return (usedBytes / 1_073_741_824, totalBytes / 1_073_741_824)
+    }
+    
+    func getBatteryInfo() -> (percentage: Int, isCharging: Bool) {
+        let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
+        let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as Array
+
+        guard let source = sources.first else {
+            return (0, false)
+        }
+
+        let info = IOPSGetPowerSourceDescription(snapshot, source).takeUnretainedValue() as! [String: AnyObject]
+
+        let capacity = info[kIOPSCurrentCapacityKey] as? Int ?? 0
+        let state = info[kIOPSPowerSourceStateKey] as? String ?? ""
+
+        let isCharging = state == kIOPSACPowerValue
+
+        return (capacity, isCharging)
     }
 }
 

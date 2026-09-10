@@ -89,6 +89,19 @@ struct ContentView: View {
 
         return (capacity, isCharging)
     }
+    
+    func getDiskSpace() -> (free: Double, total: Double) {
+        let path = NSHomeDirectory()
+
+        guard let attributes = try? FileManager.default.attributesOfFileSystem(forPath: path) else {
+            return (0, 0)
+        }
+
+        let free = attributes[.systemFreeSize] as? Double ?? 0
+        let total = attributes[.systemSize] as? Double ?? 0
+
+        return (free / 1_073_741_824, total / 1_073_741_824)
+    }
 }
 
 #Preview {

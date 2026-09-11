@@ -44,25 +44,21 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
                 ProgressView(value: stats.cpuUsage, total: 100)
-                    .tint(.blue)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Label("RAM: \(String(format: "%.1f", stats.memoryUsed)) / \(String(format: "%.1f", stats.memoryTotal)) GB", systemImage: "memorychip")
                 ProgressView(value: stats.memoryUsed, total: stats.memoryTotal)
-                    .tint(.purple)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Battery: \(stats.batteryPercentage)% \(stats.isCharging ? "⚡️" : "")", systemImage: stats.isCharging ? "battery.100.bolt" : "battery.50")
+                Label("Battery: \(stats.batteryPercentage)% \(stats.isCharging ? "(charging)" : "")", systemImage: "battery.100")
                 ProgressView(value: Double(stats.batteryPercentage), total: 100)
-                    .tint(stats.batteryPercentage < 20 ? .red : .green)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Label("Disk free: \(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB", systemImage: "internaldrive")
                 ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
-                    .tint(.orange)
             }
 
             Divider()

@@ -4,6 +4,7 @@ import Combine
 
 class SystemStats: ObservableObject {
     @Published var cpuUsage: Double = 0
+    @Published var cpuPerCore: [Double] = []
     @Published var memoryUsed: Double = 0
     @Published var memoryTotal: Double = 0
     @Published var batteryPercentage: Int = 0
@@ -12,7 +13,9 @@ class SystemStats: ObservableObject {
     @Published var diskTotal: Double = 0
 
     func refresh() {
-        cpuUsage = getCPUUsage()
+        let perCore = getCPUUsagePerCore()
+        cpuPerCore = perCore
+        cpuUsage = perCore.isEmpty ? 0 : perCore.reduce(0, +) / Double(perCore.count)
 
         let memory = getMemoryUsage()
         memoryUsed = memory.used
@@ -30,12 +33,29 @@ class SystemStats: ObservableObject {
 
 struct ContentView: View {
     @EnvironmentObject var stats: SystemStats
+    @State private var showCoreDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
                 ProgressView(value: stats.cpuUsage, total: 100)
+
+                if showCoreDetails {
+                    ForEach(Array(stats.cpuPerCore.enumerated()), id: \.offset) { index, usage in
+                        HStack {
+                            Text("Core \(index)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 50, alignment: .leading)
+                            ProgressView(value: usage, total: 100)
+                        }
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                showCoreDetails.toggle()
             }
 
             VStack(alignment: .leading, spacing: 4) {

@@ -33,14 +33,6 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Image(systemName: "menubar.rectangle")
-                Text("MacStats")
-                    .font(.headline)
-            }
-
-            Divider()
-
             VStack(alignment: .leading, spacing: 4) {
                 Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
                 ProgressView(value: stats.cpuUsage, total: 100)
@@ -52,7 +44,7 @@ struct ContentView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Battery: \(stats.batteryPercentage)% \(stats.isCharging ? "(charging)" : "")", systemImage: "battery.100")
+                Label("Battery: \(stats.batteryPercentage)%", systemImage: "battery.100")
                 ProgressView(value: Double(stats.batteryPercentage), total: 100)
             }
 
@@ -60,14 +52,6 @@ struct ContentView: View {
                 Label("Disk free: \(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB", systemImage: "internaldrive")
                 ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
             }
-
-            Divider()
-
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
-            .buttonStyle(.plain)
-            .foregroundColor(.red)
         }
         .padding()
         .frame(width: 280)

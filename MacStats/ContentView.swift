@@ -1,5 +1,6 @@
 import SwiftUI
 import IOKit.ps
+import Darwin
 import Combine
 
 class SystemStats: ObservableObject {
@@ -11,6 +12,12 @@ class SystemStats: ObservableObject {
     @Published var isCharging: Bool = false
     @Published var diskFree: Double = 0
     @Published var diskTotal: Double = 0
+    @Published var downloadSpeed: Double = 0
+    @Published var uploadSpeed: Double = 0
+
+    private var lastBytesIn: UInt64 = 0
+    private var lastBytesOut: UInt64 = 0
+    private var lastTimestamp = Date()
 
     func refresh() {
         let perCore = getCPUUsagePerCore()
@@ -28,71 +35,35 @@ class SystemStats: ObservableObject {
         let disk = getDiskSpace()
         diskFree = disk.free
         diskTotal = disk.total
-    }
-}
 
-struct ContentView: View {
-    @EnvironmentObject var stats: SystemStats
-    @State private var showCoreDetails = false
+        let network = getNetworkBytes()
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastTimestamp)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
-                ProgressView(value: stats.cpuUsage, total: 100)
-
-                if showCoreDetails {
-                    ForEach(Array(stats.cpuPerCore.enumerated()), id: \.offset) { index, usage in
-                        HStack {
-                            Text("Core \(index)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 50, alignment: .leading)
-                            ProgressView(value: usage, total: 100)
-                        }
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                showCoreDetails.toggle()
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Label("RAM: \(String(format: "%.1f", stats.memoryUsed)) / \(String(format: "%.1f", stats.memoryTotal)) GB", systemImage: "memorychip")
-                ProgressView(value: stats.memoryUsed, total: stats.memoryTotal)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Label("Battery: \(stats.batteryPercentage)%", systemImage: "battery.100")
-                ProgressView(value: Double(stats.batteryPercentage), total: 100)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Label("Disk free: \(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB", systemImage: "internaldrive")
-                ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
-            }
+        if elapsed > 0 && lastBytesIn > 0 {
+            let inDelta = Double(network.bytesIn) - Double(lastBytesIn)
+            let outDelta = Double(network.bytesOut) - Double(lastBytesOut)
+            downloadSpeed = max(0, inDelta / elapsed / 1024)
+            uploadSpeed = max(0, outDelta / elapsed / 1024)
         }
-        .padding()
-        .frame(width: 280)
+
+        lastBytesIn = network.bytesIn
+        lastBytesOut = network.bytesOut
+        lastTimestamp = now
     }
 }
 
-#Preview {
-    ContentView().environmentObject(SystemStats())
-}
-
-func getCPUUsage() -> Double {
+func getCPUUsagePerCore() -> [Double] {
     var numCPUsU: natural_t = 0
     var cpuInfo: processor_info_array_t!
     var numCpuInfo: mach_msg_type_number_t = 0
 
     let result = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numCPUsU, &cpuInfo, &numCpuInfo)
     if result != KERN_SUCCESS {
-        return 0
+        return []
     }
 
-    var totalUsage: Double = 0
+    var usages: [Double] = []
 
     for i in 0..<Int(numCPUsU) {
         let user = Double(cpuInfo[Int(CPU_STATE_MAX) * i + Int(CPU_STATE_USER)])
@@ -101,15 +72,13 @@ func getCPUUsage() -> Double {
         let nice = Double(cpuInfo[Int(CPU_STATE_MAX) * i + Int(CPU_STATE_NICE)])
 
         let total = user + sys + idle + nice
-        if total > 0 {
-            totalUsage += (user + sys + nice) / total
-        }
+        usages.append(total > 0 ? (user + sys + nice) / total * 100 : 0)
     }
 
     let size = vm_size_t(numCpuInfo) * vm_size_t(MemoryLayout<integer_t>.stride)
     vm_deallocate(mach_task_self_, vm_address_t(bitPattern: cpuInfo), size)
 
-    return (totalUsage / Double(numCPUsU)) * 100
+    return usages
 }
 
 func getMemoryUsage() -> (used: Double, total: Double) {
@@ -169,30 +138,102 @@ func getDiskSpace() -> (free: Double, total: Double) {
     return (free / 1_073_741_824, total / 1_073_741_824)
 }
 
-func getCPUUsagePerCore() -> [Double] {
-    var numCPUsU: natural_t = 0
-    var cpuInfo: processor_info_array_t!
-    var numCpuInfo: mach_msg_type_number_t = 0
+func getNetworkBytes() -> (bytesIn: UInt64, bytesOut: UInt64) {
+    var totalIn: UInt64 = 0
+    var totalOut: UInt64 = 0
 
-    let result = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numCPUsU, &cpuInfo, &numCpuInfo)
-    if result != KERN_SUCCESS {
-        return []
+    var ifaddrPtr: UnsafeMutablePointer<ifaddrs>?
+    guard getifaddrs(&ifaddrPtr) == 0 else { return (0, 0) }
+    defer { freeifaddrs(ifaddrPtr) }
+
+    var ptr = ifaddrPtr
+    while ptr != nil {
+        defer { ptr = ptr?.pointee.ifa_next }
+        guard let interface = ptr?.pointee else { continue }
+
+        let addrFamily = interface.ifa_addr.pointee.sa_family
+        guard addrFamily == UInt8(AF_LINK) else { continue }
+
+        let name = String(cString: interface.ifa_name)
+        guard name != "lo0" else { continue }
+
+        if let data = interface.ifa_data {
+            let networkData = data.assumingMemoryBound(to: if_data.self).pointee
+            totalIn += UInt64(networkData.ifi_ibytes)
+            totalOut += UInt64(networkData.ifi_obytes)
+        }
     }
 
-    var usages: [Double] = []
+    return (totalIn, totalOut)
+}
 
-    for i in 0..<Int(numCPUsU) {
-        let user = Double(cpuInfo[Int(CPU_STATE_MAX) * i + Int(CPU_STATE_USER)])
-        let sys = Double(cpuInfo[Int(CPU_STATE_MAX) * i + Int(CPU_STATE_SYSTEM)])
-        let idle = Double(cpuInfo[Int(CPU_STATE_MAX) * i + Int(CPU_STATE_IDLE)])
-        let nice = Double(cpuInfo[Int(CPU_STATE_MAX) * i + Int(CPU_STATE_NICE)])
-
-        let total = user + sys + idle + nice
-        usages.append(total > 0 ? (user + sys + nice) / total * 100 : 0)
+func formatSpeed(_ kbPerSecond: Double) -> String {
+    if kbPerSecond > 1024 {
+        return String(format: "%.1f MB/s", kbPerSecond / 1024)
     }
+    return String(format: "%.0f KB/s", kbPerSecond)
+}
 
-    let size = vm_size_t(numCpuInfo) * vm_size_t(MemoryLayout<integer_t>.stride)
-    vm_deallocate(mach_task_self_, vm_address_t(bitPattern: cpuInfo), size)
+struct ContentView: View {
+    @EnvironmentObject var stats: SystemStats
+    @State private var showCoreDetails = false
 
-    return usages
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
+                ProgressView(value: stats.cpuUsage, total: 100)
+
+                if showCoreDetails {
+                    ForEach(Array(stats.cpuPerCore.enumerated()), id: \.offset) { index, usage in
+                        HStack {
+                            Text("Core \(index)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 50, alignment: .leading)
+                            ProgressView(value: usage, total: 100)
+                        }
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                showCoreDetails.toggle()
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label("RAM: \(String(format: "%.1f", stats.memoryUsed)) / \(String(format: "%.1f", stats.memoryTotal)) GB", systemImage: "memorychip")
+                ProgressView(value: stats.memoryUsed, total: stats.memoryTotal)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Battery: \(stats.batteryPercentage)%", systemImage: "battery.100")
+                ProgressView(value: Double(stats.batteryPercentage), total: 100)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Disk free: \(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB", systemImage: "internaldrive")
+                ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Network", systemImage: "network")
+                HStack {
+                    Image(systemName: "arrow.down")
+                    Text(formatSpeed(stats.downloadSpeed))
+                    Spacer()
+                    Image(systemName: "arrow.up")
+                    Text(formatSpeed(stats.uploadSpeed))
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .frame(width: 280)
+    }
+}
+
+#Preview {
+    ContentView().environmentObject(SystemStats())
 }

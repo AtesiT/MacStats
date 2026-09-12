@@ -29,7 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 260, height: 300)
+        popover.contentSize = NSSize(width: 280, height: 380)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: ContentView().environmentObject(stats))
 
@@ -62,7 +62,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showContextMenu() {
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit MacStats", action: #selector(quitApp), keyEquivalent: "q"))
 
         statusItem.menu = menu
         statusItem.button?.performClick(nil)

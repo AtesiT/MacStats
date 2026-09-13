@@ -11,7 +11,7 @@ struct MacStatsApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
     var timer: Timer?
@@ -31,13 +31,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popover = NSPopover()
         popover.contentSize = NSSize(width: 280, height: 380)
         popover.behavior = .transient
+        popover.delegate = self
         popover.contentViewController = NSHostingController(rootView: ContentView().environmentObject(stats))
 
         stats.refresh()
-
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.stats.refresh()
-        }
     }
 
     @objc func statusItemClicked() {
@@ -56,8 +53,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            stats.refresh()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            startTimer()
         }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        stopTimer()
+    }
+
+    func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.stats.refresh()
+        }
+    }
+
+    func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 
     func showContextMenu() {

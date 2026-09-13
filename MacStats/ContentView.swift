@@ -218,12 +218,9 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Label("Network", systemImage: "network")
-                HStack {
-                    Image(systemName: "arrow.down")
-                    Text(formatSpeed(stats.downloadSpeed))
-                    Spacer()
-                    Image(systemName: "arrow.up")
-                    Text(formatSpeed(stats.uploadSpeed))
+                HStack(spacing: 16) {
+                    Label(formatSpeed(stats.downloadSpeed), systemImage: "arrow.down")
+                    Label(formatSpeed(stats.uploadSpeed), systemImage: "arrow.up")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)

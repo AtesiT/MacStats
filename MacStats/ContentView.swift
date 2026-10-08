@@ -111,16 +111,13 @@ func getBatteryInfo() -> (percentage: Int, isCharging: Bool) {
     let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
     let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as Array
 
-    guard let source = sources.first else {
+    guard let source = sources.first,
+          let info = IOPSGetPowerSourceDescription(snapshot, source).takeUnretainedValue() as? [String: AnyObject] else {
         return (0, false)
     }
 
-    let info = IOPSGetPowerSourceDescription(snapshot, source).takeUnretainedValue() as! [String: AnyObject]
-
     let capacity = info[kIOPSCurrentCapacityKey] as? Int ?? 0
-    let state = info[kIOPSPowerSourceStateKey] as? String ?? ""
-
-    let isCharging = state == kIOPSACPowerValue
+    let isCharging = info[kIOPSIsChargingKey] as? Bool ?? false
 
     return (capacity, isCharging)
 }

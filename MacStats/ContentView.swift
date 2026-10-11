@@ -19,25 +19,52 @@ class SystemStats: ObservableObject {
     private var lastBytesOut: UInt64 = 0
     private var lastTimestamp = Date()
 
+    private let backgroundQueue = DispatchQueue(label: "com.macstats.refresh", qos: .utility)
+
     func refresh() {
-        let perCore = getCPUUsagePerCore()
+        backgroundQueue.async { [weak self] in
+            guard let self else { return }
+
+            let perCore = getCPUUsagePerCore()
+            let memory = getMemoryUsage()
+            let battery = getBatteryInfo()
+            let disk = getDiskSpace()
+            let network = getNetworkBytes()
+            let now = Date()
+
+            DispatchQueue.main.async {
+                self.applyResults(
+                    perCore: perCore,
+                    memory: memory,
+                    battery: battery,
+                    disk: disk,
+                    network: network,
+                    now: now
+                )
+            }
+        }
+    }
+
+    private func applyResults(
+        perCore: [Double],
+        memory: (used: Double, total: Double),
+        battery: (percentage: Int, isCharging: Bool),
+        disk: (free: Double, total: Double),
+        network: (bytesIn: UInt64, bytesOut: UInt64),
+        now: Date
+    ) {
         cpuPerCore = perCore
         cpuUsage = perCore.isEmpty ? 0 : perCore.reduce(0, +) / Double(perCore.count)
 
-        let memory = getMemoryUsage()
         memoryUsed = memory.used
         memoryTotal = memory.total
 
-        let battery = getBatteryInfo()
         batteryPercentage = battery.percentage
         isCharging = battery.isCharging
 
-        let disk = getDiskSpace()
         diskFree = disk.free
         diskTotal = disk.total
 
-        let network = getNetworkBytes()
-        let now = Date()
         let elapsed = now.timeIntervalSince(lastTimestamp)
 
         if elapsed > 0 && lastBytesIn > 0 {
@@ -50,6 +77,12 @@ class SystemStats: ObservableObject {
         lastBytesIn = network.bytesIn
         lastBytesOut = network.bytesOut
         lastTimestamp = now
+    }
+
+    func resetNetworkBaseline() {
+        lastBytesIn = 0
+        lastBytesOut = 0
+        lastTimestamp = Date()
     }
 }
 

@@ -14,7 +14,7 @@ class SystemStats: ObservableObject {
     @Published var diskTotal: Double = 0
     @Published var downloadSpeed: Double = 0
     @Published var uploadSpeed: Double = 0
-    @Published var maxObservedSpeed: Double = 512
+    @Published var maxObservedSpeed: Double = 1024
 
     private var lastBytesIn: UInt64 = 0
     private var lastBytesOut: UInt64 = 0
@@ -78,7 +78,7 @@ class SystemStats: ObservableObject {
             if currentPeak > maxObservedSpeed {
                 maxObservedSpeed = currentPeak
             } else {
-                maxObservedSpeed = max(512, maxObservedSpeed * 0.98)
+                maxObservedSpeed = max(1024, maxObservedSpeed * 0.98)
             }
         }
 

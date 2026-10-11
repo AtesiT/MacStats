@@ -14,6 +14,7 @@ class SystemStats: ObservableObject {
     @Published var diskTotal: Double = 0
     @Published var downloadSpeed: Double = 0
     @Published var uploadSpeed: Double = 0
+    @Published var maxObservedSpeed: Double = 512
 
     private var lastBytesIn: UInt64 = 0
     private var lastBytesOut: UInt64 = 0
@@ -72,6 +73,13 @@ class SystemStats: ObservableObject {
             let outDelta = Double(network.bytesOut) - Double(lastBytesOut)
             downloadSpeed = max(0, inDelta / elapsed / 1024)
             uploadSpeed = max(0, outDelta / elapsed / 1024)
+
+            let currentPeak = max(downloadSpeed, uploadSpeed)
+            if currentPeak > maxObservedSpeed {
+                maxObservedSpeed = currentPeak
+            } else {
+                maxObservedSpeed = max(512, maxObservedSpeed * 0.98)
+            }
         }
 
         lastBytesIn = network.bytesIn
@@ -247,13 +255,13 @@ struct ContentView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Network", systemImage: "network")
-                HStack(spacing: 16) {
-                    Label(formatSpeed(stats.downloadSpeed), systemImage: "arrow.down")
-                    Label(formatSpeed(stats.uploadSpeed), systemImage: "arrow.up")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
+                Label("Download: \(formatSpeed(stats.downloadSpeed))", systemImage: "arrow.down")
+                ProgressView(value: stats.downloadSpeed, total: stats.maxObservedSpeed)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Upload: \(formatSpeed(stats.uploadSpeed))", systemImage: "arrow.up")
+                ProgressView(value: stats.uploadSpeed, total: stats.maxObservedSpeed)
             }
         }
         .padding()

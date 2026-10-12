@@ -219,7 +219,11 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Label("CPU: \(Int(stats.cpuUsage))%", systemImage: "cpu")
+                HStack {
+                    Label("CPU", systemImage: "cpu")
+                    Spacer()
+                    Text("\(Int(stats.cpuUsage))%")
+                }
                 ProgressView(value: stats.cpuUsage, total: 100)
 
                 if showCoreDetails {
@@ -240,27 +244,47 @@ struct ContentView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("RAM: \(String(format: "%.1f", stats.memoryUsed)) / \(String(format: "%.1f", stats.memoryTotal)) GB", systemImage: "memorychip")
+                HStack {
+                    Label("RAM", systemImage: "memorychip")
+                    Spacer()
+                    Text("\(String(format: "%.1f", stats.memoryUsed)) / \(String(format: "%.1f", stats.memoryTotal)) GB")
+                }
                 ProgressView(value: stats.memoryUsed, total: stats.memoryTotal)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Battery: \(stats.batteryPercentage)%", systemImage: "battery.100")
+                HStack {
+                    Label("Battery", systemImage: "battery.100")
+                    Spacer()
+                    Text("\(stats.batteryPercentage)%")
+                }
                 ProgressView(value: Double(stats.batteryPercentage), total: 100)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Disk free: \(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB", systemImage: "internaldrive")
+                HStack {
+                    Label("Disk free", systemImage: "internaldrive")
+                    Spacer()
+                    Text("\(String(format: "%.0f", stats.diskFree)) / \(String(format: "%.0f", stats.diskTotal)) GB")
+                }
                 ProgressView(value: stats.diskTotal - stats.diskFree, total: stats.diskTotal)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Download: \(formatSpeed(stats.downloadSpeed))", systemImage: "arrow.down")
+                HStack {
+                    Label("Download", systemImage: "arrow.down")
+                    Spacer()
+                    Text(formatSpeed(stats.downloadSpeed))
+                }
                 ProgressView(value: stats.downloadSpeed, total: stats.maxObservedSpeed)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Upload: \(formatSpeed(stats.uploadSpeed))", systemImage: "arrow.up")
+                HStack {
+                    Label("Upload", systemImage: "arrow.up")
+                    Spacer()
+                    Text(formatSpeed(stats.uploadSpeed))
+                }
                 ProgressView(value: stats.uploadSpeed, total: stats.maxObservedSpeed)
             }
         }
